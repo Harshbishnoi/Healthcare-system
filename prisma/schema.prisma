@@ -1,15 +1,167 @@
-// Prisma Schema for Relational Data, Reporting, Audit, and Transactions
-// Doctor-Patient Healthcare Platform
+// Prisma Schema for Relational PostgreSQL Database, Audit Logs, Transactions, and SQL JOINs
+// Doctor–Patient Healthcare Platform
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite" // Defaults to sqlite for seamless zero-dependency out-of-the-box dev, easily switchable to postgresql
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// 1. Relational Doctor Profile Entity
+model Doctor {
+  id              String   @id @default(uuid())
+  mongoDoctorId   String?  @unique
+  name            String
+  email           String   @unique
+  specialization  String
+  experienceYears Int      @default(0)
+  hospitalClinic  String
+  city            String
+  consultationFee Float    @default(500.0)
+  ratingAvg       Float    @default(5.0)
+  totalReviews    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relational Foreign Key Links for SQL JOINs
+  appointments    Appointment[]
+  reviews         DoctorReview[]
+  metrics         DoctorMetric?
+
+  @@index([specialization])
+  @@index([city])
+  @@index([ratingAvg])
+}
+
+// 2. Relational Patient Profile Entity
+model Patient {
+  id               String   @id @default(uuid())
+  mongoPatientId   String?  @unique
+  name             String
+  email            String   @unique
+  mobile           String
+  city             String
+  bloodGroup       String?
+  healthConcern    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relational Foreign Key Links for SQL JOINs
+  appointments     Appointment[]
+  reviews          DoctorReview[]
+
+  @@index([city])
+}
+
+// 3. Relational Appointment Entity (Central JOIN Table)
+model Appointment {
+  id                 String   @id @default(uuid())
+  mongoAppointmentId String   @unique
+  appointmentDate    DateTime
+  timeSlot           String
+  status             String   @default("pending") // pending, confirmed, completed, cancelled
+  mode               String   @default("offline") // online, offline
+  consultationFee    Float    @default(500.0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relational Foreign Key Relations for SQL JOINs
+  doctorId           String
+  doctor             Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  patientId          String
+  patient            Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  consultation       Consultation?
+  payment            PaymentTransaction?
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([appointmentDate])
+  @@index([status])
+}
+
+// 4. Relational Consultation Entity (Joined with Appointment)
+model Consultation {
+  id                  String      @id @default(uuid())
+  mongoConsultationId String?     @unique
+  diagnosis           String
+  clinicalNotes       String
+  treatmentPlan       String?
+  vitalsBp            String?
+  vitalsPulse         String?
+  vitalsTemp          String?
+  followUpDate        DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // Relational Foreign Key Link (1-to-1 with Appointment)
+  appointmentId       String      @unique
+  appointment         Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([diagnosis])
+  @@index([createdAt])
+}
+
+// 5. Relational Payment Transaction Entity (Joined with Appointment)
+model PaymentTransaction {
+  id              String      @id @default(uuid())
+  transactionId   String      @unique
+  amount          Float
+  currency        String      @default("USD")
+  status          String      @default("succeeded") // pending, succeeded, failed, refunded
+  paymentMethod   String      @default("card")
+  receiptNumber   String      @unique
+  paidAt          DateTime    @default(now())
+
+  // Relational Foreign Key Link
+  appointmentId   String      @unique
+  appointment     Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([paidAt])
+}
+
+// 6. Relational Doctor Review Entity (Joined with Doctor and Patient)
+model DoctorReview {
+  id          String   @id @default(uuid())
+  rating      Int      @default(5)
+  comment     String
+  isAnonymous Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  // Relational Foreign Key Links
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([rating])
+}
+
+// 7. Aggregated Metrics Entity
+model DoctorMetric {
+  id                    String   @id @default(uuid())
+  doctorId              String   @unique
+  doctor                Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  totalAppointments     Int      @default(0)
+  completedAppointments Int      @default(0)
+  cancelledAppointments Int      @default(0)
+  revenueSum            Float    @default(0.0)
+  averageRating         Float    @default(5.0)
+  reviewCount           Int      @default(0)
+  lastUpdated           DateTime @default(now()) @updatedAt
+
+  @@index([doctorId])
+}
+
+// 8. Relational User Audit Log
 model UserAuditLog {
   id        String   @id @default(uuid())
   userId    String
@@ -17,7 +169,7 @@ model UserAuditLog {
   action    String
   ipAddress String?
   userAgent String?
-  metadata  String?  // JSON string
+  metadata  String?
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -25,59 +177,7 @@ model UserAuditLog {
   @@index([createdAt])
 }
 
-model AppointmentRecord {
-  id                 String   @id @default(uuid())
-  mongoAppointmentId String   @unique
-  patientId          String
-  doctorId           String
-  appointmentDate    DateTime
-  timeSlot           String
-  status             String   @default("pending") // pending, confirmed, completed, cancelled
-  mode               String   @default("offline") // online, offline
-  consultationFee    Float    @default(0.0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  consultationAudit  ConsultationAudit?
-
-  @@index([patientId])
-  @@index([doctorId])
-  @@index([appointmentDate])
-  @@index([status])
-}
-
-model DoctorMetric {
-  id                    String   @id @default(uuid())
-  doctorId              String   @unique
-  totalAppointments     Int      @default(0)
-  completedAppointments Int      @default(0)
-  cancelledAppointments Int      @default(0)
-  revenueSum            Float    @default(0.0)
-  averageRating         Float    @default(0.0)
-  reviewCount           Int      @default(0)
-  lastUpdated           DateTime @default(now()) @updatedAt
-
-  @@index([doctorId])
-  @@index([averageRating])
-}
-
-model ConsultationAudit {
-  id                  String            @id @default(uuid())
-  mongoConsultationId String            @unique
-  appointmentRecordId String            @unique
-  appointmentRecord   AppointmentRecord @relation(fields: [appointmentRecordId], references: [id], onDelete: Cascade)
-  doctorId            String
-  patientId           String
-  diagnosisCategory   String
-  prescriptionCount   Int               @default(0)
-  hasFollowUp         Boolean           @default(false)
-  recordedAt          DateTime          @default(now())
-
-  @@index([doctorId])
-  @@index([patientId])
-  @@index([recordedAt])
-}
-
+// 9. Daily Platform Metric Rollup
 model PlatformMetric {
   id                   String   @id @default(uuid())
   reportDate           DateTime @default(now())
@@ -86,6 +186,7 @@ model PlatformMetric {
   activePatients       Int      @default(0)
   onlineConsultations  Int      @default(0)
   offlineConsultations Int      @default(0)
+  totalRevenue         Float    @default(0.0)
   topSpecialization    String?
 
   @@index([reportDate])

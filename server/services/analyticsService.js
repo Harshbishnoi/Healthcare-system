@@ -109,19 +109,22 @@ class AnalyticsService {
 
   /**
    * Relational SQL JOINs using Prisma ORM relations
-   * Joins AppointmentRecord with ConsultationAudit and calculates financial aggregates
+   * Joins Appointment with Doctor, Patient, Consultation, and PaymentTransaction
    */
   static async getRelationalJoinedConsultations(doctorId = null) {
     try {
-      if (!prisma || !prisma.appointmentRecord) return [];
+      if (!prisma || !prisma.appointment) return [];
 
       const whereClause = doctorId ? { doctorId } : {};
 
-      // SQL JOIN: AppointmentRecord INNER JOIN ConsultationAudit
-      const joinedRecords = await prisma.appointmentRecord.findMany({
+      // SQL JOIN: Appointment INNER JOIN Doctor INNER JOIN Patient LEFT JOIN Consultation
+      const joinedRecords = await prisma.appointment.findMany({
         where: whereClause,
         include: {
-          consultation: true, // Relational JOIN via Prisma foreign key relation
+          doctor: true,       // SQL JOIN: Appointment -> Doctor
+          patient: true,      // SQL JOIN: Appointment -> Patient
+          consultation: true, // SQL JOIN: Appointment -> Consultation
+          payment: true,      // SQL JOIN: Appointment -> PaymentTransaction
         },
         orderBy: { appointmentDate: 'desc' },
         take: 50,
@@ -130,6 +133,37 @@ class AnalyticsService {
       return joinedRecords;
     } catch (err) {
       console.warn('[AnalyticsService] Relational SQL JOIN error:', err.message);
+      return [];
+    }
+  }
+
+  /**
+   * Raw SQL JOINs Execution for PostgreSQL Analytics
+   * Executes multi-table INNER JOIN, LEFT JOIN, and aggregate GROUP BY query
+   */
+  static async executeRawSqlDoctorJoins() {
+    try {
+      if (!prisma || typeof prisma.$queryRaw !== 'function') return [];
+
+      // Raw SQL query with INNER JOIN, LEFT JOIN, and GROUP BY
+      const results = await prisma.$queryRaw`
+        SELECT 
+          d.id AS doctor_id,
+          d.name AS doctor_name,
+          d.specialization,
+          COUNT(a.id) AS total_appointments,
+          COALESCE(SUM(a.consultation_fee), 0) AS total_revenue,
+          COALESCE(AVG(r.rating), 5.0) AS calculated_rating
+        FROM "Doctor" d
+        LEFT JOIN "Appointment" a ON d.id = a.doctor_id AND a.status = 'completed'
+        LEFT JOIN "DoctorReview" r ON d.id = r.doctor_id
+        GROUP BY d.id, d.name, d.specialization
+        ORDER BY total_revenue DESC;
+      `;
+
+      return results;
+    } catch (err) {
+      console.warn('[AnalyticsService] Raw SQL JOIN error:', err.message);
       return [];
     }
   }

@@ -49,8 +49,20 @@ const fs = require('fs');
 // API Base Route
 app.use('/api', apiRoutes);
 
-// Server-Side Rendering (SSR) Doctor Profile Route
+// Server-Side Rendering (SSR) Doctor Profile & Directory Routes
 const { renderDoctorProfileSSR } = require('./ssr/ssrRenderer');
+const { renderDoctorDirectoryHtml } = require('./ssr/reactSsrEngine');
+
+app.get(['/ssr', '/ssr/doctors'], async (req, res, next) => {
+  try {
+    const html = await renderDoctorDirectoryHtml();
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.get('/ssr/doctor/:id', async (req, res, next) => {
   try {
     const html = await renderDoctorProfileSSR(req.params.id);
