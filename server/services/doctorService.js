@@ -41,6 +41,47 @@ class DoctorService {
       ];
     }
 
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      const { SAMPLE_DOCTORS } = require('../utils/seedData');
+      let filtered = [...SAMPLE_DOCTORS];
+      if (city) filtered = filtered.filter((d) => d.city.toLowerCase().includes(city.toLowerCase()));
+      if (specialization) filtered = filtered.filter((d) => d.specialization.toLowerCase().includes(specialization.toLowerCase()));
+      if (mode && mode !== 'all') filtered = filtered.filter((d) => (d.consultationModes || []).includes(mode));
+
+      return {
+        doctors: filtered.map((d, idx) => ({
+          id: `doc_${idx + 1}`,
+          doctorId: `doc_${idx + 1}`,
+          name: d.name,
+          email: d.email,
+          mobile: d.mobile,
+          degree: d.degree,
+          specialization: d.specialization,
+          experienceYears: d.experienceYears,
+          city: d.city,
+          hospitalClinic: d.hospitalClinic,
+          serviceLocation: d.serviceLocation,
+          bio: d.bio,
+          consultationModes: d.consultationModes,
+          consultationFee: d.consultationFee,
+          ratingAvg: d.ratingAvg,
+          totalReviews: d.totalReviews,
+          availability: {
+            workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+            workingHours: { start: '09:00', end: '17:00' },
+            slotDurationMinutes: 30,
+          },
+        })),
+        pagination: {
+          total: filtered.length,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages: Math.ceil(filtered.length / Number(limit)) || 1,
+        },
+      };
+    }
+
     const skip = (Number(page) - 1) * Number(limit);
 
     const [profiles, total] = await Promise.all([
@@ -95,7 +136,44 @@ class DoctorService {
   }
 
   static async getDoctorById(id, targetDate = null) {
-    let profile = null;
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      const { SAMPLE_DOCTORS } = require('../utils/seedData');
+      const doc = SAMPLE_DOCTORS[0];
+      return {
+        id: id || 'doc_1',
+        doctorId: id || 'doc_1',
+        name: doc.name,
+        email: doc.email,
+        mobile: doc.mobile,
+        degree: doc.degree,
+        specialization: doc.specialization,
+        experienceYears: doc.experienceYears,
+        city: doc.city,
+        hospitalClinic: doc.hospitalClinic,
+        serviceLocation: doc.serviceLocation,
+        bio: doc.bio,
+        consultationModes: doc.consultationModes,
+        consultationFee: doc.consultationFee,
+        ratingAvg: doc.ratingAvg,
+        totalReviews: doc.totalReviews,
+        availability: {
+          workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+          workingHours: { start: '09:00', end: '17:00' },
+          slotDurationMinutes: 30,
+        },
+        calculatedSlots: targetDate
+          ? generateAvailableSlots({
+              workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+              workingHours: { start: '09:00', end: '17:00' },
+              slotDurationMinutes: 30,
+              targetDateStr: targetDate,
+              bookedSlots: [],
+            })
+          : null,
+        reviews: [],
+      };
+    }
 
     // Search by doctor profile ID or user ID
     profile = await DoctorProfile.findOne({

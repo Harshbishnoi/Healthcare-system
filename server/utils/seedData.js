@@ -188,4 +188,7 @@ async function seedInitialData() {
   }
 }
 
-module.exports = { seedInitialData };
+module.exports = {
+  seedInitialData,
+  SAMPLE_DOCTORS,
+};
