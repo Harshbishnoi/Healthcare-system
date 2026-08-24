@@ -22,6 +22,10 @@ const config = {
   prisma: {
     databaseUrl: process.env.DATABASE_URL || 'file:./dev.db',
   },
+  redis: {
+    url: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+    enabled: process.env.REDIS_ENABLED === 'true',
+  },
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || '',
     model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
@@ -31,5 +35,20 @@ const config = {
     max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
   },
 };
+
+/**
+ * Validate environment variables and enforce strict secrets management in production
+ */
+function validateSecrets() {
+  if (config.env === 'production') {
+    const requiredSecrets = ['JWT_SECRET', 'MONGO_URI', 'DATABASE_URL'];
+    const missing = requiredSecrets.filter((key) => !process.env[key]);
+    if (missing.length > 0) {
+      throw new Error(`[CRITICAL] Missing required production environment variables: ${missing.join(', ')}`);
+    }
+  }
+}
+
+validateSecrets();
 
 module.exports = config;

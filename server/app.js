@@ -39,11 +39,30 @@ app.use('/api', generalLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Input Sanitization & Injection Awareness (XSS, NoSQL, SQL)
+const { sanitizeInputs } = require('./middleware/sanitizationMiddleware');
+app.use(sanitizeInputs);
+
 const path = require('path');
 const fs = require('fs');
 
 // API Base Route
 app.use('/api', apiRoutes);
+
+// Server-Side Rendering (SSR) Doctor Profile Route
+const { renderDoctorProfileSSR } = require('./ssr/ssrRenderer');
+app.get('/ssr/doctor/:id', async (req, res, next) => {
+  try {
+    const html = await renderDoctorProfileSSR(req.params.id);
+    if (!html) {
+      return res.status(404).send('Doctor Profile Not Found');
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Static client build serving
 const clientDistPath = path.resolve(__dirname, '../client/dist');

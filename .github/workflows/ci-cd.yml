@@ -1,0 +1,38 @@
+name: DocPulse CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js Environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+        cache: 'npm'
+
+    - name: Install Server Dependencies
+      run: |
+        cd server
+        npm ci || npm install
+        npx prisma generate --schema=./prisma/schema.prisma
+
+    - name: Run Automated Backend Tests
+      run: |
+        cd server
+        npm test
+
+    - name: Install & Build Frontend Client
+      run: |
+        cd client
+        npm ci || npm install
+        npm run build

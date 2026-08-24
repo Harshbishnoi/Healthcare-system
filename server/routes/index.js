@@ -8,6 +8,7 @@ const appointmentRoutes = require('./appointmentRoutes');
 const reviewRoutes = require('./reviewRoutes');
 const aiRoutes = require('./aiRoutes');
 const analyticsRoutes = require('./analyticsRoutes');
+const paymentRoutes = require('./paymentRoutes');
 
 // API Health Check
 router.get('/health', (req, res) => {
@@ -27,5 +28,6 @@ router.use('/appointments', appointmentRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/ai', aiRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/payments', paymentRoutes);
 
 module.exports = router;

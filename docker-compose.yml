@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # DocPulse Application Server
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: docpulse_app
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongo:27017/doctor_patient_platform
+      - DATABASE_URL=postgresql://docpulse_user:docpulse_password@postgres:5432/docpulse_relational?schema=public
+      - REDIS_URL=redis://redis:6379
+      - REDIS_ENABLED=true
+      - JWT_SECRET=super_secure_jwt_secret_for_docker_container_2026
+    depends_on:
+      - mongo
+      - postgres
+      - redis
+
+  # MongoDB Document Clinical Database
+  mongo:
+    image: mongo:7.0
+    container_name: docpulse_mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # PostgreSQL Relational Ledger Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: docpulse_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: docpulse_user
+      POSTGRES_PASSWORD: docpulse_password
+      POSTGRES_DB: docpulse_relational
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis In-Memory Cache Store
+  redis:
+    image: redis:7-alpine
+    container_name: docpulse_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mongo_data:
+  postgres_data:
+  redis_data:

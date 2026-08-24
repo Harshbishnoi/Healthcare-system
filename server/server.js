@@ -4,6 +4,10 @@ const { connectMongoDB } = require('./config/db.mongo');
 const { connectPostgres } = require('./config/db.postgres');
 const { seedInitialData } = require('./utils/seedData');
 
+const http = require('http');
+const { initializeSocket } = require('./config/socket');
+const { initializeCronJobs } = require('./jobs/cronJobs');
+
 let server;
 
 async function startServer() {
@@ -17,13 +21,21 @@ async function startServer() {
     // 3. Seed initial sample data if clean database
     await seedInitialData();
 
-    // 4. Start HTTP Server
-    server = app.listen(config.port, () => {
+    // 4. Create HTTP Server & Bind WebSockets
+    server = http.createServer(app);
+    initializeSocket(server, config.clientUrl);
+
+    // 5. Initialize Background Cron Jobs
+    initializeCronJobs();
+
+    server.listen(config.port, () => {
       console.log(`\n======================================================`);
       console.log(`  DocPulse Healthcare Server running on port ${config.port}`);
       console.log(`  Environment : ${config.env}`);
       console.log(`  Client URL  : ${config.clientUrl}`);
       console.log(`  API Base    : http://localhost:${config.port}/api`);
+      console.log(`  WebSockets  : Enabled`);
+      console.log(`  Cron Jobs   : Initialized`);
       console.log(`======================================================\n`);
     });
   } catch (error) {

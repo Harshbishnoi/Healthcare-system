@@ -23,6 +23,9 @@ class AuditService {
     }
   }
 
+  /**
+   * Synchronizes appointment records using atomic Prisma database transaction
+   */
   static async syncAppointmentRecord({
     mongoAppointmentId,
     patientId,
@@ -34,31 +37,46 @@ class AuditService {
     consultationFee = 500,
   }) {
     try {
-      if (prisma && prisma.appointmentRecord) {
-        await prisma.appointmentRecord.upsert({
-          where: { mongoAppointmentId: mongoAppointmentId.toString() },
-          update: {
-            status,
-            mode,
-            updatedAt: new Date(),
-          },
-          create: {
-            mongoAppointmentId: mongoAppointmentId.toString(),
-            patientId: patientId.toString(),
-            doctorId: doctorId.toString(),
-            appointmentDate: new Date(appointmentDate),
-            timeSlot,
-            status,
-            mode,
-            consultationFee: Number(consultationFee) || 0,
-          },
-        });
+      if (prisma && prisma.appointmentRecord && prisma.userAuditLog) {
+        // Execute atomic SQL transaction across appointment ledger and audit log
+        await prisma.$transaction([
+          prisma.appointmentRecord.upsert({
+            where: { mongoAppointmentId: mongoAppointmentId.toString() },
+            update: {
+              status,
+              mode,
+              updatedAt: new Date(),
+            },
+            create: {
+              mongoAppointmentId: mongoAppointmentId.toString(),
+              patientId: patientId.toString(),
+              doctorId: doctorId.toString(),
+              appointmentDate: new Date(appointmentDate),
+              timeSlot,
+              status,
+              mode,
+              consultationFee: Number(consultationFee) || 0,
+            },
+          }),
+          prisma.userAuditLog.create({
+            data: {
+              userId: patientId.toString(),
+              role: 'patient',
+              action: `APPOINTMENT_${status.toUpperCase()}`,
+              metadata: JSON.stringify({
+                mongoAppointmentId: mongoAppointmentId.toString(),
+                doctorId: doctorId.toString(),
+                timeSlot,
+              }),
+            },
+          }),
+        ]);
 
         // Update Doctor Metrics in PostgreSQL
         await this.recalculateDoctorMetrics(doctorId.toString());
       }
     } catch (err) {
-      console.warn('[AuditService] Failed to sync appointment record:', err.message);
+      console.warn('[AuditService] Transactional sync notice:', err.message);
     }
   }
 

@@ -12,8 +12,10 @@ const {
 } = require('../schemas/doctorSchemas');
 const { getDoctorReviewsValidation } = require('../schemas/reviewSchemas');
 
+const { cacheResponse } = require('../middleware/cacheMiddleware');
+
 // Public Doctor Discovery
-router.get('/', searchDoctorsValidation, validateRequest, DoctorController.getDoctors);
+router.get('/', searchDoctorsValidation, validateRequest, cacheResponse(60), DoctorController.getDoctors);
 router.get('/:id', DoctorController.getDoctorById);
 router.get('/:id/reviews', getDoctorReviewsValidation, validateRequest, ReviewController.getDoctorReviews);
 

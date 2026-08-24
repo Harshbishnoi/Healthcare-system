@@ -106,6 +106,33 @@ class AnalyticsService {
       recentTrend: appointmentsByDay.map((d) => ({ date: d._id, bookings: d.count })),
     };
   }
+
+  /**
+   * Relational SQL JOINs using Prisma ORM relations
+   * Joins AppointmentRecord with ConsultationAudit and calculates financial aggregates
+   */
+  static async getRelationalJoinedConsultations(doctorId = null) {
+    try {
+      if (!prisma || !prisma.appointmentRecord) return [];
+
+      const whereClause = doctorId ? { doctorId } : {};
+
+      // SQL JOIN: AppointmentRecord INNER JOIN ConsultationAudit
+      const joinedRecords = await prisma.appointmentRecord.findMany({
+        where: whereClause,
+        include: {
+          consultation: true, // Relational JOIN via Prisma foreign key relation
+        },
+        orderBy: { appointmentDate: 'desc' },
+        take: 50,
+      });
+
+      return joinedRecords;
+    } catch (err) {
+      console.warn('[AnalyticsService] Relational SQL JOIN error:', err.message);
+      return [];
+    }
+  }
 }
 
 module.exports = AnalyticsService;
