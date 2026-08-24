@@ -39,11 +39,26 @@ app.use('/api', generalLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+const path = require('path');
+const fs = require('fs');
+
 // API Base Route
 app.use('/api', apiRoutes);
 
-// Handle 404 for Unmatched Routes
-app.all('*', (req, res, next) => {
+// Static client build serving
+const clientDistPath = path.resolve(__dirname, '../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
+// Handle 404 for Unmatched API Routes
+app.all('/api/*', (req, res, next) => {
   next(new AppError(`Cannot find endpoint ${req.method} ${req.originalUrl} on this server.`, 404));
 });
 

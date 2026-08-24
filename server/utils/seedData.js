@@ -109,6 +109,10 @@ const SAMPLE_DOCTORS = [
 
 async function seedInitialData() {
   try {
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      return;
+    }
     const userCount = await User.countDocuments();
     if (userCount > 0) {
       return; // Already seeded
