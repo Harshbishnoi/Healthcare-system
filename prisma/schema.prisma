@@ -1,0 +1,92 @@
+// Prisma Schema for Relational Data, Reporting, Audit, and Transactions
+// Doctor-Patient Healthcare Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // Defaults to sqlite for seamless zero-dependency out-of-the-box dev, easily switchable to postgresql
+  url      = env("DATABASE_URL")
+}
+
+model UserAuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  role      String
+  action    String
+  ipAddress String?
+  userAgent String?
+  metadata  String?  // JSON string
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model AppointmentRecord {
+  id                 String   @id @default(uuid())
+  mongoAppointmentId String   @unique
+  patientId          String
+  doctorId           String
+  appointmentDate    DateTime
+  timeSlot           String
+  status             String   @default("pending") // pending, confirmed, completed, cancelled
+  mode               String   @default("offline") // online, offline
+  consultationFee    Float    @default(0.0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  consultationAudit  ConsultationAudit?
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([appointmentDate])
+  @@index([status])
+}
+
+model DoctorMetric {
+  id                    String   @id @default(uuid())
+  doctorId              String   @unique
+  totalAppointments     Int      @default(0)
+  completedAppointments Int      @default(0)
+  cancelledAppointments Int      @default(0)
+  revenueSum            Float    @default(0.0)
+  averageRating         Float    @default(0.0)
+  reviewCount           Int      @default(0)
+  lastUpdated           DateTime @default(now()) @updatedAt
+
+  @@index([doctorId])
+  @@index([averageRating])
+}
+
+model ConsultationAudit {
+  id                  String            @id @default(uuid())
+  mongoConsultationId String            @unique
+  appointmentRecordId String            @unique
+  appointmentRecord   AppointmentRecord @relation(fields: [appointmentRecordId], references: [id], onDelete: Cascade)
+  doctorId            String
+  patientId           String
+  diagnosisCategory   String
+  prescriptionCount   Int               @default(0)
+  hasFollowUp         Boolean           @default(false)
+  recordedAt          DateTime          @default(now())
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([recordedAt])
+}
+
+model PlatformMetric {
+  id                   String   @id @default(uuid())
+  reportDate           DateTime @default(now())
+  totalBookings        Int      @default(0)
+  activeDoctors        Int      @default(0)
+  activePatients       Int      @default(0)
+  onlineConsultations  Int      @default(0)
+  offlineConsultations Int      @default(0)
+  topSpecialization    String?
+
+  @@index([reportDate])
+}
