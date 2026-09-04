@@ -1,12 +1,33 @@
 const config = require('../config/env');
 
 /**
- * Centralized Error Handling Middleware
+ * Centralized Production-Grade Error Handling Middleware
+ * Intercepts Operational, Database (Prisma/Mongoose), Validation, JWT, Multer, and System Errors.
  */
 const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
   let details = err.details || null;
+
+  // Handle Multer file upload errors
+  if (err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      statusCode = 413; // Payload Too Large
+      message = 'Uploaded file exceeds the maximum allowed size limit (10MB).';
+    } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      statusCode = 400;
+      message = `Unexpected upload field: '${err.field}'. Please use the designated field name.`;
+    } else {
+      statusCode = 400;
+      message = `File upload error: ${err.message}`;
+    }
+  }
+
+  // Handle Malformed JSON payload SyntaxError
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    statusCode = 400;
+    message = 'Malformed JSON request body syntax.';
+  }
 
   // Handle Mongoose Bad ObjectId (CastError)
   if (err.name === 'CastError') {
@@ -42,14 +63,19 @@ const errorHandler = (err, req, res, next) => {
     message = 'Authentication token expired. Please log in again.';
   }
 
-  // Handle Prisma errors
+  // Handle Prisma Relational errors
   if (err.code && err.code.startsWith('P')) {
     if (err.code === 'P2002') {
       statusCode = 409;
-      message = 'Unique constraint failed in relational database.';
+      message = 'Unique constraint violation in relational database.';
+      details = { target: err.meta?.target };
     } else if (err.code === 'P2025') {
       statusCode = 404;
       message = 'Relational record not found.';
+    } else if (err.code === 'P2003') {
+      statusCode = 400;
+      message = 'Foreign key constraint failed in relational database.';
+      details = { field: err.meta?.field_name };
     }
   }
 
@@ -64,6 +90,7 @@ const errorHandler = (err, req, res, next) => {
   return res.status(statusCode).json({
     success: false,
     statusCode,
+    status: `${statusCode}`.startsWith('4') ? 'fail' : 'error',
     message,
     ...(details && { details }),
     ...(config.env === 'development' && statusCode === 500 && { stack: err.stack }),

@@ -10,6 +10,7 @@ coverage/
 # Production Build
 dist/
 build/
+client/dist/
 
 # Environment Variables
 .env
@@ -17,6 +18,12 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+server/uploads/*
+!server/uploads/.gitkeep
 
 # Logs
 npm-debug.log*

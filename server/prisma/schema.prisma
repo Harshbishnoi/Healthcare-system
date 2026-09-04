@@ -1,4 +1,4 @@
-// Prisma Schema for Relational PostgreSQL Database, Audit Logs, Transactions, and SQL JOINs
+// Prisma Schema for Relational PostgreSQL Database, Audit Logs, Transactions, RAG Vectors, and AI Analytics
 // Doctor–Patient Healthcare Platform
 
 generator client {
@@ -30,6 +30,7 @@ model Doctor {
   appointments    Appointment[]
   reviews         DoctorReview[]
   metrics         DoctorMetric?
+  medicalRecords  MedicalRecord[]
 
   @@index([specialization])
   @@index([city])
@@ -52,6 +53,7 @@ model Patient {
   // Relational Foreign Key Links for SQL JOINs
   appointments     Appointment[]
   reviews          DoctorReview[]
+  medicalRecords   MedicalRecord[]
 
   @@index([city])
 }
@@ -190,4 +192,82 @@ model PlatformMetric {
   topSpecialization    String?
 
   @@index([reportDate])
+}
+
+// 10. Medical Records & Lab Uploads Entity (Problem Modeling & File Uploads)
+model MedicalRecord {
+  id             String   @id @default(uuid())
+  patientId      String
+  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId       String?
+  doctor         Doctor?  @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  title          String
+  recordType     String   @default("lab_report") // lab_report, prescription, radiology_scan, discharge_summary
+  fileUrl        String
+  fileName       String
+  fileSize       Int      @default(0) // bytes
+  mimeType       String   @default("application/pdf")
+  isConfidential Boolean  @default(false)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([recordType])
+  @@index([createdAt])
+}
+
+// 11. AI Token & Cost Monitoring Log Entity
+model AiTokenUsage {
+  id                String   @id @default(uuid())
+  userId            String?
+  model             String
+  promptTokens      Int      @default(0)
+  completionTokens  Int      @default(0)
+  totalTokens       Int      @default(0)
+  estimatedCostUsd  Float    @default(0.0)
+  feature           String   @default("triage") // triage, doctor_search, rag_query, multi_step_agent, stream_triage
+  latencyMs         Int      @default(0)
+  status            String   @default("success") // success, error, filtered
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+  @@index([model])
+  @@index([feature])
+  @@index([createdAt])
+}
+
+// 12. RAG Medical Knowledge Base Document Entity (Vector Retrieval)
+model KnowledgeDocument {
+  id                   String   @id @default(uuid())
+  title                String
+  category             String   // emergency_triage, cardiology, pediatrics, dermatology, pharmacology
+  chunkText            String
+  vectorEmbeddingJson  String   // JSON serialized float array vector
+  source               String   // WHO, CDC, AHA, Stanford Clinical Guidelines
+  keywords             String?
+  createdAt            DateTime @default(now())
+
+  @@index([category])
+  @@index([title])
+}
+
+// 13. Multi-Step Autonomous Agent Execution Log Entity
+model AgentExecutionLog {
+  id              String   @id @default(uuid())
+  sessionId       String
+  userId          String?
+  goal            String
+  stepsJson       String   // JSON serialized array of ReAct steps (Thought, Action, Observation)
+  finalResult     String
+  totalSteps      Int      @default(0)
+  totalTokens     Int      @default(0)
+  totalCostUsd    Float    @default(0.0)
+  executionTimeMs Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([createdAt])
 }

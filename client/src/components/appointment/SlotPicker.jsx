@@ -131,7 +131,7 @@ export const SlotPicker = ({
 
       {/* 3. Slot Matrix */}
       <div>
-        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2 flex items-center justify-between">
+        <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2 flex items-center justify-between">
           <span>3. Select Time Slot</span>
           {selectedDate && <span className="text-slate-400 font-normal">{formatDate(selectedDate)}</span>}
         </label>
