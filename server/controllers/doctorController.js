@@ -66,6 +66,29 @@ class DoctorController {
       next(error);
     }
   }
+
+  static async getSpecializationAggregation(req, res, next) {
+    try {
+      const DoctorProfile = require('../models/DoctorProfile');
+      const Appointment = require('../models/Appointment');
+      const stats = await DoctorProfile.aggregateSpecializationStats();
+      const modeStats = await Appointment.getModeAnalytics();
+      return ApiResponse.success(res, { specializations: stats, modeAnalytics: modeStats }, 'Aggregation pipeline analytics retrieved');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getRelationalSqlJoins(req, res, next) {
+    try {
+      const AnalyticsService = require('../services/analyticsService');
+      const joinedData = await AnalyticsService.getRelationalJoinedAppointments();
+      const rawJoins = await AnalyticsService.executeRawSqlDoctorJoins();
+      return ApiResponse.success(res, { joinedAppointments: joinedData, doctorJoins: rawJoins }, 'Relational SQL JOINs data retrieved');
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = DoctorController;

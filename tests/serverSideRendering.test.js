@@ -42,6 +42,23 @@ describe('System & Integration: Server-Side Rendering (SSR) & SEO Tests', () => 
       expect(res.text).toContain('<div id="ssr-root">');
     });
 
+    it('GET / - should return 200 OK with server-rendered HTML when requested with text/html accept header', async () => {
+      const res = await request(app).get('/').set('Accept', 'text/html');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('text/html');
+      expect(res.text).toContain('DocPulse — Server-Side Rendered Directory');
+    });
+
+    it('GET /doctors - should return 200 OK with text/html content-type and physician list', async () => {
+      const res = await request(app).get('/doctors');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('text/html');
+      expect(res.text).toContain('DocPulse — Server-Side Rendered Directory');
+      expect(res.text).toContain('Book Consultation');
+    });
+
     it('GET /ssr/doctors - should return 200 OK with text/html content-type', async () => {
       const res = await request(app).get('/ssr/doctors');
 

@@ -14,8 +14,10 @@ const { getDoctorReviewsValidation } = require('../schemas/reviewSchemas');
 
 const { cacheResponse } = require('../middleware/cacheMiddleware');
 
-// Public Doctor Discovery
+// Public Doctor Discovery & Analytics
 router.get('/', searchDoctorsValidation, validateRequest, cacheResponse(60), DoctorController.getDoctors);
+router.get('/analytics/aggregation', DoctorController.getSpecializationAggregation);
+router.get('/analytics/sql-joins', DoctorController.getRelationalSqlJoins);
 router.get('/:id', DoctorController.getDoctorById);
 router.get('/:id/reviews', getDoctorReviewsValidation, validateRequest, ReviewController.getDoctorReviews);
 

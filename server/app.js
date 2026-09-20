@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -50,33 +51,36 @@ const fs = require('fs');
 app.use('/api', apiRoutes);
 
 // Server-Side Rendering (SSR) Doctor Profile & Directory Routes
+const ReactDOMServer = require('react-dom/server');
 const { renderDoctorProfileSSR } = require('./ssr/ssrRenderer');
-const { renderDoctorDirectoryHtml } = require('./ssr/reactSsrEngine');
+const { renderDoctorDirectoryHtml, SsrDoctorDirectory } = require('./ssr/reactSsrEngine');
 
-app.get(['/ssr', '/ssr/doctors'], async (req, res, next) => {
+// Primary SSR Endpoints for Doctor Directory & Homepage
+app.get(['/', '/doctors', '/ssr', '/ssr/doctors'], async (req, res, next) => {
   try {
     const html = await renderDoctorDirectoryHtml();
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
+    return res.status(200).send(html);
   } catch (err) {
     next(err);
   }
 });
 
-app.get('/ssr/doctor/:id', async (req, res, next) => {
+// Primary SSR Endpoints for Doctor Detail Profiles
+app.get(['/doctor/:id', '/doctors/:id', '/ssr/doctor/:id'], async (req, res, next) => {
   try {
     const html = await renderDoctorProfileSSR(req.params.id);
     if (!html) {
       return res.status(404).send('Doctor Profile Not Found');
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
+    return res.status(200).send(html);
   } catch (err) {
     next(err);
   }
 });
 
-// Static client build serving
+// Static client build serving (SPA fallback)
 const clientDistPath = path.resolve(__dirname, '../client/dist');
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
