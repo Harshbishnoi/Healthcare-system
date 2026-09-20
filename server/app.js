@@ -80,17 +80,41 @@ app.get(['/doctor/:id', '/doctors/:id', '/ssr/doctor/:id'], async (req, res, nex
   }
 });
 
-// Static client build serving (SPA fallback)
+// Static client build serving with Vite SSR hydration support
 const clientDistPath = path.resolve(__dirname, '../client/dist');
+const serverEntryPath = path.resolve(__dirname, '../client/dist/server/entry-server.js');
+
 if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
-  app.get('*', (req, res, next) => {
+  app.use(express.static(clientDistPath, { index: false }));
+
+  app.get('*', async (req, res, next) => {
     if (req.originalUrl.startsWith('/api')) {
       return next();
     }
-    res.sendFile(path.join(clientDistPath, 'index.html'));
+    try {
+      const templatePath = path.join(clientDistPath, 'index.html');
+      if (fs.existsSync(templatePath)) {
+        let template = fs.readFileSync(templatePath, 'utf-8');
+        if (fs.existsSync(serverEntryPath)) {
+          try {
+            const { render } = require(serverEntryPath);
+            const { html: appHtml } = render(req.originalUrl);
+            const html = template.replace('<!--ssr-outlet-->', appHtml);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            return res.status(200).send(html);
+          } catch (ssrErr) {
+            console.warn('[SSR Middleware Warning]', ssrErr.message);
+          }
+        }
+        return res.sendFile(templatePath);
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
   });
 }
+
 
 // Handle 404 for Unmatched API Routes
 app.all('/api/*', (req, res, next) => {

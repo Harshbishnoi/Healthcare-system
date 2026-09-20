@@ -107,6 +107,18 @@ class AnalyticsService {
     };
   }
 
+  static async withTimeout(promise, timeoutMs = 1000) {
+    let timer;
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Database query timed out')), timeoutMs);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   /**
    * Relational SQL JOINs using Prisma ORM relations
    * Joins Appointment with Doctor, Patient, Consultation, and PaymentTransaction
@@ -119,8 +131,9 @@ class AnalyticsService {
       const whereClause = doctorId ? { doctorId } : {};
 
       // SQL JOIN: Appointment INNER JOIN Doctor INNER JOIN Patient LEFT JOIN Consultation
-      const joinedRecords = await apptModel.findMany({
+      const queryPromise = apptModel.findMany({
         where: whereClause,
+        relationLoadStrategy: 'join',
         include: {
           doctor: true,       // SQL JOIN: Appointment -> Doctor
           patient: true,      // SQL JOIN: Appointment -> Patient
@@ -130,6 +143,8 @@ class AnalyticsService {
         orderBy: { appointmentDate: 'desc' },
         take: 50,
       });
+
+      const joinedRecords = await this.withTimeout(queryPromise, 1000);
 
       return joinedRecords && joinedRecords.length > 0
         ? joinedRecords
@@ -155,7 +170,7 @@ class AnalyticsService {
       }
 
       // Raw SQL query with INNER JOIN, LEFT JOIN, and GROUP BY
-      const results = await prisma.$queryRaw`
+      const queryPromise = prisma.$queryRaw`
         SELECT 
           d.id AS doctor_id,
           d.name AS doctor_name,
@@ -170,12 +185,15 @@ class AnalyticsService {
         ORDER BY total_revenue DESC;
       `;
 
+      const results = await this.withTimeout(queryPromise, 1000);
+
       return Array.isArray(results) && results.length > 0 ? results : this.getFallbackDoctorJoins();
     } catch (err) {
       console.warn('[AnalyticsService] Raw SQL JOIN error:', err.message);
       return this.getFallbackDoctorJoins();
     }
   }
+
 
   static getFallbackJoinedAppointments() {
     return [

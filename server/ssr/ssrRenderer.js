@@ -72,19 +72,23 @@ async function renderDoctorProfileSSR(doctorId) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </head>
 <body style="font-family: system-ui, sans-serif; background: #f8fafc; margin: 0; padding: 2rem;">
-  <main style="max-width: 800px; margin: 0 auto; background: white; padding: 2rem; border-radius: 1.5rem; border: 1px solid #e2e8f0;">
-    <h1 style="color: #0f172a; margin-bottom: 0.25rem;">Dr. ${doctorUser.name}</h1>
-    <p style="color: #0284c7; font-weight: bold; margin-top: 0;">${profile.degree} • ${profile.specialization}</p>
-    <p style="color: #475569;">${profile.hospitalClinic} — ${profile.serviceLocation}, ${profile.city}</p>
-    <div style="margin: 1.5rem 0; padding: 1rem; background: #f1f5f9; border-radius: 1rem;">
-      <strong>Clinical Focus & Biography:</strong>
-      <p style="margin-top: 0.5rem; color: #334155; line-height: 1.6;">${profile.bio || 'General Clinical Practice'}</p>
+  <div id="root" data-ssr="true">
+    <div id="ssr-root">
+      <main style="max-width: 800px; margin: 0 auto; background: white; padding: 2rem; border-radius: 1.5rem; border: 1px solid #e2e8f0;">
+        <h1 style="color: #0f172a; margin-bottom: 0.25rem;">Dr. ${doctorUser.name}</h1>
+        <p style="color: #0284c7; font-weight: bold; margin-top: 0;">${profile.degree} • ${profile.specialization}</p>
+        <p style="color: #475569;">${profile.hospitalClinic} — ${profile.serviceLocation}, ${profile.city}</p>
+        <div style="margin: 1.5rem 0; padding: 1rem; background: #f1f5f9; border-radius: 1rem;">
+          <strong>Clinical Focus & Biography:</strong>
+          <p style="margin-top: 0.5rem; color: #334155; line-height: 1.6;">${profile.bio || 'General Clinical Practice'}</p>
+        </div>
+        <p><strong>Consultation Fee:</strong> $${profile.consultationFee}</p>
+        <a href="/doctors/${doctorId}" style="display: inline-block; background: #0284c7; color: white; padding: 0.75rem 1.5rem; border-radius: 0.75rem; text-decoration: none; font-weight: bold; margin-top: 1rem;">
+          Proceed to Interactive Appointment Booking &rarr;
+        </a>
+      </main>
     </div>
-    <p><strong>Consultation Fee:</strong> $${profile.consultationFee}</p>
-    <a href="/doctors/${doctorId}" style="display: inline-block; background: #0284c7; color: white; padding: 0.75rem 1.5rem; border-radius: 0.75rem; text-decoration: none; font-weight: bold; margin-top: 1rem;">
-      Proceed to Interactive Appointment Booking &rarr;
-    </a>
-  </main>
+  </div>
 </body>
 </html>
     `;

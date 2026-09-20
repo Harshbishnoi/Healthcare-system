@@ -2,8 +2,9 @@
   "name": "doctor-patient-platform",
   "version": "1.0.0",
   "description": "Production-grade Doctor-Patient Healthcare Web Application",
-  "private": true,
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "server:dev": "npm --prefix server run dev",
     "client:dev": "npm --prefix client run dev",
@@ -30,7 +31,11 @@
   "author": "Harsh Bishnoi",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^16.4.7"
+    "@prisma/client": "^5.22.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

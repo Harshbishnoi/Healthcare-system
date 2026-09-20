@@ -1,8 +1,9 @@
-// Prisma Schema for Relational PostgreSQL Database, Audit Logs, Transactions, RAG Vectors, and AI Analytics
-// Doctor–Patient Healthcare Platform
+// Prisma Schema for Relational PostgreSQL Database, SQL JOINs, Foreign Keys, Audit Logs, Transactions, RAG Vectors, and AI Analytics
+// Doctor–Patient Healthcare Platform — Relational Schema with Multi-Table SQL JOINs (Inner Joins, Left Joins, Relation Joins)
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -311,4 +312,18 @@ model ConsultationAudit {
   @@index([doctorId])
   @@index([patientId])
   @@index([appointmentRecordId])
+}
+
+// 16. Relational User Entity
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      String   @default("patient") // patient, doctor, admin
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([role])
 }

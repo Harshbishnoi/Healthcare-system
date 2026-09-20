@@ -1,9 +1,15 @@
-﻿const request = require('supertest');
+const request = require('supertest');
 const app = require('../app');
 const AnalyticsService = require('../services/analyticsService');
 const { prisma } = require('../config/db.postgres');
 
 describe('SQL (Postgres): Relational Database JOINs Tests', () => {
+  afterAll(async () => {
+    if (prisma && prisma.$disconnect) {
+      await prisma.$disconnect().catch(() => {});
+    }
+  });
+
   describe('Prisma Multi-Table Relational JOINs (include)', () => {
     it('should query joined records across Appointment, Doctor, Patient, and Consultation tables', async () => {
       const records = await AnalyticsService.getRelationalJoinedAppointments();

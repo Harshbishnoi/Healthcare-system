@@ -98,7 +98,7 @@ async function renderDoctorDirectoryHtml() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </head>
 <body style="margin: 0; padding: 0;">
-  <div id="ssr-root">${reactHtml}</div>
+  <div id="root" data-ssr="true"><div id="ssr-root">${reactHtml}</div></div>
 </body>
 </html>`;
 

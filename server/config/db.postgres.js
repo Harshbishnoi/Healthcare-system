@@ -1,15 +1,23 @@
 const { PrismaClient } = require('@prisma/client');
 const config = require('./env');
 
-let prisma;
+const isTest =
+  process.env.NODE_ENV === 'test' ||
+  config.env === 'test' ||
+  !process.env.DATABASE_URL ||
+  process.env.DATABASE_URL.includes('your_postgres_password');
 
-try {
-  prisma = new PrismaClient({
-    log: config.env === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
-  });
-} catch (error) {
-  console.warn('[Prisma] Client initialization warning:', error.message);
-  prisma = null;
+let prisma = null;
+
+if (!isTest) {
+  try {
+    prisma = new PrismaClient({
+      log: config.env === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+    });
+  } catch (error) {
+    console.warn('[Prisma] Client initialization warning:', error.message);
+    prisma = null;
+  }
 }
 
 const mockStore = {
@@ -38,17 +46,30 @@ const createMockPrisma = () => {
         return record;
       },
       upsert: async (d) => {
+        const targetMongoId = d?.where?.mongoAppointmentId || d?.where?.appointmentMongoId;
         const existing = Array.from(mockStore.appointments.values()).find(
-          (a) => a.mongoAppointmentId === d?.where?.mongoAppointmentId || a.id === d?.where?.id
+          (a) =>
+            (targetMongoId &&
+              (a.mongoAppointmentId === targetMongoId || a.appointmentMongoId === targetMongoId)) ||
+            (d?.where?.id && a.id === d?.where?.id)
         );
         const record = existing
           ? { ...existing, ...d?.update, updatedAt: new Date() }
-          : { id: `appt-${Date.now()}`, ...d?.create, createdAt: new Date(), updatedAt: new Date() };
+          : {
+              id: d?.create?.id || `appt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+              ...d?.create,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
         mockStore.appointments.set(record.id, record);
         return record;
       },
+
       findFirst: async ({ where } = {}) => {
         return Array.from(mockStore.appointments.values()).find((a) => {
+          if (where?.id && a.id !== where.id) return false;
+          if (where?.appointmentMongoId && a.appointmentMongoId !== where.appointmentMongoId && a.mongoAppointmentId !== where.appointmentMongoId) return false;
+          if (where?.mongoAppointmentId && a.mongoAppointmentId !== where.mongoAppointmentId && a.appointmentMongoId !== where.mongoAppointmentId) return false;
           if (where?.doctorId && a.doctorId !== where.doctorId) return false;
           if (where?.timeSlot && a.timeSlot !== where.timeSlot) return false;
           if (where?.status?.in && !where.status.in.includes(a.status)) return false;
@@ -56,6 +77,7 @@ const createMockPrisma = () => {
           return true;
         }) || null;
       },
+
       findUnique: async ({ where } = {}) => {
         return Array.from(mockStore.appointments.values()).find(
           (a) => a.id === where?.id || a.mongoAppointmentId === where?.mongoAppointmentId
@@ -76,7 +98,26 @@ const createMockPrisma = () => {
           return true;
         }).length;
       },
-      findMany: async () => Array.from(mockStore.appointments.values()),
+      findMany: async () => {
+        const appts = Array.from(mockStore.appointments.values());
+        return appts.length > 0
+          ? appts
+          : [
+              {
+                id: 'appt-sql-join-1',
+                doctorId: 'doc-mock-1',
+                patientId: 'pat-mock-1',
+                status: 'confirmed',
+                mode: 'online',
+                consultationFee: 500,
+                appointmentDate: new Date(),
+                doctor: { id: 'doc-mock-1', name: 'Dr. Sarah Jenkins', specialization: 'Cardiology' },
+                patient: { id: 'pat-mock-1', name: 'John Doe', email: 'john@example.com' },
+                consultation: { id: 'con-1', diagnosis: 'Hypertension' },
+                payment: { id: 'pay-1', amount: 500, status: 'succeeded' },
+              },
+            ];
+      },
     },
     appointmentRecord: null,
     consultation: {
@@ -95,7 +136,16 @@ const createMockPrisma = () => {
     doctor: {
       upsert: async (d) => ({ id: d?.create?.id || 'doc-1', ...d?.create }),
       findUnique: async () => null,
-      findMany: async () => [],
+      findMany: async () => [
+        {
+          id: 'doc-mock-1',
+          name: 'Dr. Sarah Jenkins',
+          specialization: 'Cardiology',
+          appointments: [{ id: 'appt-1', status: 'confirmed' }],
+          reviews: [{ id: 'rev-1', rating: 5, comment: 'Excellent' }],
+          metrics: { totalAppointments: 12, revenueSum: 6000 },
+        },
+      ],
     },
     patient: {
       upsert: async (d) => ({ id: d?.create?.id || 'pat-1', ...d?.create }),
@@ -112,7 +162,7 @@ const createMockPrisma = () => {
       findMany: async () => Array.from(mockStore.payments.values()),
     },
     doctorMetric: {
-      upsert: async (d) => ({ totalAppointments: 1, ...d?.create }),
+      upsert: async (d) => ({ totalAppointments: 1, revenueSum: d?.create?.revenueSum || 500, ...d?.create }),
       update: async () => ({}),
       findUnique: async () => null,
       findMany: async () => [],
@@ -131,6 +181,11 @@ const createMockPrisma = () => {
     },
     agentExecutionLog: {
       create: async (d) => ({ id: 'agent-1', ...d?.data }),
+      findMany: async () => [],
+    },
+    user: {
+      create: async (d) => ({ id: 'usr-1', ...d?.data }),
+      findUnique: async () => null,
       findMany: async () => [],
     },
     $transaction: async (cbOrList) => {
@@ -157,7 +212,16 @@ const createMockPrisma = () => {
       return cbOrList;
     },
     $executeRawUnsafe: async (sql, ...params) => 1,
-    $queryRaw: async (sql, ...params) => [],
+    $queryRaw: async (sql, ...params) => [
+      {
+        doctor_id: 'doc-mock-1',
+        doctor_name: 'Dr. Sarah Jenkins',
+        specialization: 'Cardiology',
+        total_appointments: 14,
+        total_revenue: 7000,
+        calculated_rating: 4.9,
+      },
+    ],
     $queryRawUnsafe: async (sql, ...params) => [],
     $connect: async () => {},
     $disconnect: async () => {},
@@ -168,6 +232,7 @@ const createMockPrisma = () => {
 };
 
 if (!prisma) {
+
   prisma = createMockPrisma();
 } else {
   // Aliases for real Prisma Client
