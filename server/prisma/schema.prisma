@@ -271,3 +271,44 @@ model AgentExecutionLog {
   @@index([userId])
   @@index([createdAt])
 }
+
+// 14. Relational Appointment Record (Relational Mirror & Transaction Ledger)
+model AppointmentRecord {
+  id                 String   @id @default(uuid())
+  mongoAppointmentId String   @unique
+  doctorId           String
+  patientId          String
+  appointmentDate    DateTime
+  timeSlot           String
+  status             String   @default("pending") // pending, confirmed, completed, cancelled
+  mode               String   @default("offline") // online, offline
+  consultationFee    Float    @default(500.0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  consultationAudits ConsultationAudit[]
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([appointmentDate])
+  @@index([status])
+}
+
+// 15. Consultation Audit Entity (PostgreSQL Transactional Audit)
+model ConsultationAudit {
+  id                  String   @id @default(uuid())
+  mongoConsultationId String?  @unique
+  appointmentRecordId String
+  doctorId            String
+  patientId           String
+  diagnosisCategory   String
+  prescriptionCount   Int      @default(0)
+  hasFollowUp         Boolean  @default(false)
+  createdAt           DateTime @default(now())
+
+  appointmentRecord   AppointmentRecord @relation(fields: [appointmentRecordId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([appointmentRecordId])
+}

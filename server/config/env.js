@@ -17,7 +17,7 @@ const config = {
     saltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 10,
   },
   mongo: {
-    uri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/doctor_patient_platform',
+    uri: process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/doctor_patient_platform',
   },
   prisma: {
     databaseUrl: process.env.DATABASE_URL || 'file:./dev.db',
@@ -29,6 +29,11 @@ const config = {
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || '',
     model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+  },
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || 'mock_stripe_docpulse_secret_key_2026',
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || 'mock_stripe_docpulse_publishable_key_2026',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || 'mock_docpulse_payment_webhook_secret_2026',
   },
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,

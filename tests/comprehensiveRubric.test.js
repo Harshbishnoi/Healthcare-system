@@ -1,15 +1,15 @@
 const request = require('supertest');
 const path = require('path');
 const fs = require('fs');
-const app = require('../server/app');
-const { generateToken } = require('../server/utils/jwtUtils');
-const TokenCostService = require('../server/services/tokenCostService');
-const RagService = require('../server/services/ragService');
-const MedicalAgentService = require('../server/services/medicalAgentService');
-const { vectorStore, cosineSimilarity, generateDeterministicEmbedding } = require('../server/services/vectorStoreService');
-const AppointmentService = require('../server/services/appointmentService');
-const AppError = require('../server/utils/appError');
-const { runEvaluations } = require('../server/evals/evalRunner');
+const app = require('../app');
+const { generateToken } = require('../utils/jwtUtils');
+const TokenCostService = require('../services/tokenCostService');
+const RagService = require('../services/ragService');
+const MedicalAgentService = require('../services/medicalAgentService');
+const { vectorStore, cosineSimilarity, generateDeterministicEmbedding } = require('../services/vectorStoreService');
+const AppointmentService = require('../services/appointmentService');
+const AppError = require('../utils/appError');
+const { runEvaluations } = require('../evals/evalRunner');
 
 describe('Comprehensive 12-Concept Rubric Verification Test Suite', () => {
   let patientToken;
@@ -76,7 +76,7 @@ describe('Comprehensive 12-Concept Rubric Verification Test Suite', () => {
     it('should return 422 Unprocessable Entity on schema validation failure', async () => {
       const res = await request(app)
         .post('/api/ai/rag-query')
-        .send({ query: '' });
+        .send({ query: '' }); // Invalid empty query
 
       expect(res.status).toBe(422);
       expect(res.body.success).toBe(false);
@@ -119,10 +119,10 @@ describe('Comprehensive 12-Concept Rubric Verification Test Suite', () => {
   // -------------------------------------------------------------
   describe('Concept 4: Problem Modeling', () => {
     it('should have all 13 core domain entities modeled in Prisma and Mongoose', () => {
-      const MedicalRecord = require('../server/models/MedicalRecord');
-      const AiTokenUsage = require('../server/models/AiTokenUsage');
-      const KnowledgeDocument = require('../server/models/KnowledgeDocument');
-      const AgentExecutionLog = require('../server/models/AgentExecutionLog');
+      const MedicalRecord = require('../models/MedicalRecord');
+      const AiTokenUsage = require('../models/AiTokenUsage');
+      const KnowledgeDocument = require('../models/KnowledgeDocument');
+      const AgentExecutionLog = require('../models/AgentExecutionLog');
 
       expect(MedicalRecord).toBeDefined();
       expect(AiTokenUsage).toBeDefined();
