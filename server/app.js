@@ -56,13 +56,43 @@ const { renderDoctorProfileSSR } = require('./ssr/ssrRenderer');
 const { renderDoctorDirectoryHtml, SsrDoctorDirectory } = require('./ssr/reactSsrEngine');
 
 // Primary SSR Endpoints for Doctor Directory & Homepage
-app.get(['/', '/doctors', '/ssr', '/ssr/doctors'], async (req, res, next) => {
+app.get(['/ssr', '/ssr/doctors'], async (req, res, next) => {
   try {
     const html = await renderDoctorDirectoryHtml();
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(200).send(html);
   } catch (err) {
     next(err);
+  }
+});
+
+app.get(['/', '/doctors'], async (req, res, next) => {
+  try {
+    const render = await loadSsrRender();
+    const templatePath = path.join(clientDistPath, 'index.html');
+    if (render && fs.existsSync(templatePath)) {
+      let template = fs.readFileSync(templatePath, 'utf-8');
+      const { html: appHtml } = render(req.originalUrl);
+      let html = template;
+      if (html.includes('<!--ssr-outlet-->')) {
+        html = html.replace('<!--ssr-outlet-->', `<div id="ssr-root" data-ssr="true">${appHtml}</div>`);
+      } else {
+        html = html.replace('<div id="root"></div>', `<div id="root" data-ssr="true"><div id="ssr-root">${appHtml}</div></div>`);
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(html);
+    }
+    const html = await renderDoctorDirectoryHtml();
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(html);
+  } catch (err) {
+    try {
+      const html = await renderDoctorDirectoryHtml();
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(html);
+    } catch (fallbackErr) {
+      next(err);
+    }
   }
 });
 
@@ -83,6 +113,22 @@ app.get(['/doctor/:id', '/doctors/:id', '/ssr/doctor/:id'], async (req, res, nex
 // Static client build serving with Vite SSR hydration support
 const clientDistPath = path.resolve(__dirname, '../client/dist');
 const serverEntryPath = path.resolve(__dirname, '../client/dist/server/entry-server.js');
+const { pathToFileURL } = require('url');
+
+let ssrRenderFn = null;
+async function loadSsrRender() {
+  if (ssrRenderFn) return ssrRenderFn;
+  if (fs.existsSync(serverEntryPath)) {
+    try {
+      const mod = await import(pathToFileURL(serverEntryPath).href);
+      ssrRenderFn = mod.render || mod.default;
+      return ssrRenderFn;
+    } catch (e) {
+      console.warn('[SSR Load Notice]', e.message);
+    }
+  }
+  return null;
+}
 
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath, { index: false }));
@@ -95,15 +141,20 @@ if (fs.existsSync(clientDistPath)) {
       const templatePath = path.join(clientDistPath, 'index.html');
       if (fs.existsSync(templatePath)) {
         let template = fs.readFileSync(templatePath, 'utf-8');
-        if (fs.existsSync(serverEntryPath)) {
+        const render = await loadSsrRender();
+        if (render) {
           try {
-            const { render } = require(serverEntryPath);
             const { html: appHtml } = render(req.originalUrl);
-            const html = template.replace('<!--ssr-outlet-->', appHtml);
+            let html = template;
+            if (html.includes('<!--ssr-outlet-->')) {
+              html = html.replace('<!--ssr-outlet-->', `<div id="ssr-root" data-ssr="true">${appHtml}</div>`);
+            } else {
+              html = html.replace('<div id="root"></div>', `<div id="root" data-ssr="true"><div id="ssr-root">${appHtml}</div></div>`);
+            }
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             return res.status(200).send(html);
-          } catch (ssrErr) {
-            console.warn('[SSR Middleware Warning]', ssrErr.message);
+          } catch (renderErr) {
+            console.warn('[SSR Render Warning]', renderErr.message);
           }
         }
         return res.sendFile(templatePath);

@@ -15,4 +15,9 @@ router.get(
   AnalyticsController.getDoctorAnalytics
 );
 
+// Relational SQL JOINs & Aggregation analytics
+const DoctorController = require('../controllers/doctorController');
+router.get('/sql-joins', DoctorController.getRelationalSqlJoins);
+router.get('/aggregation', DoctorController.getSpecializationAggregation);
+
 module.exports = router;

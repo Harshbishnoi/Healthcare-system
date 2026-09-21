@@ -5,14 +5,22 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('docpulse_user');
+    if (typeof window === 'undefined') return null;
     try {
+      const saved = localStorage.getItem('docpulse_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
   });
-  const [token, setToken] = useState(() => localStorage.getItem('docpulse_token'));
+  const [token, setToken] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('docpulse_token');
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   // Initialize auth check on mount

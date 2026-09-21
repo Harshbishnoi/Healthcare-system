@@ -15,6 +15,7 @@ datasource db {
 model Doctor {
   id              String   @id @default(uuid())
   mongoDoctorId   String?  @unique
+  userId          String?  @unique
   name            String
   email           String   @unique
   specialization  String
@@ -28,10 +29,13 @@ model Doctor {
   updatedAt       DateTime @updatedAt
 
   // Relational Foreign Key Links for SQL JOINs
+  user            User?              @relation("UserDoctor", fields: [userId], references: [id], onDelete: Cascade)
   appointments    Appointment[]
   reviews         DoctorReview[]
   metrics         DoctorMetric?
   medicalRecords  MedicalRecord[]
+  doctorPatients  DoctorPatient[]
+  departments     DoctorDepartment[]
 
   @@index([specialization])
   @@index([city])
@@ -42,6 +46,7 @@ model Doctor {
 model Patient {
   id               String   @id @default(uuid())
   mongoPatientId   String?  @unique
+  userId           String?  @unique
   name             String
   email            String   @unique
   mobile           String
@@ -52,9 +57,11 @@ model Patient {
   updatedAt        DateTime @updatedAt
 
   // Relational Foreign Key Links for SQL JOINs
+  user             User?           @relation("UserPatient", fields: [userId], references: [id], onDelete: Cascade)
   appointments     Appointment[]
   reviews          DoctorReview[]
   medicalRecords   MedicalRecord[]
+  patientDoctors   DoctorPatient[]
 
   @@index([city])
 }
@@ -316,14 +323,55 @@ model ConsultationAudit {
 
 // 16. Relational User Entity
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  role      String   @default("patient") // patient, doctor, admin
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String         @id @default(uuid())
+  name           String
+  email          String         @unique
+  role           String         @default("patient") // patient, doctor, admin
+  phone          String?
+  doctorProfile  Doctor?        @relation("UserDoctor")
+  patientProfile Patient?       @relation("UserPatient")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([email])
   @@index([role])
 }
+
+// 17. Explicit Many-to-Many SQL JOIN Table connecting Doctors and Patients
+model DoctorPatient {
+  id          String   @id @default(uuid())
+  doctorId    String
+  patientId   String
+  assignedAt  DateTime @default(now())
+  primaryCare Boolean  @default(false)
+
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, patientId])
+  @@index([doctorId])
+  @@index([patientId])
+}
+
+// 18. Department Entity for Hospital/Clinic Structure
+model Department {
+  id          String             @id @default(uuid())
+  name        String             @unique
+  description String?
+  doctors     DoctorDepartment[]
+  createdAt   DateTime           @default(now())
+}
+
+// 19. Explicit Many-to-Many SQL JOIN Table connecting Doctors and Departments
+model DoctorDepartment {
+  id           String     @id @default(uuid())
+  doctorId     String
+  departmentId String
+  doctor       Doctor     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, departmentId])
+  @@index([doctorId])
+  @@index([departmentId])
+}
+
